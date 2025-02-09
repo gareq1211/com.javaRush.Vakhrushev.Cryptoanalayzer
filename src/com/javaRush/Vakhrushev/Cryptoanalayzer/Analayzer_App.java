@@ -31,9 +31,9 @@ public class Analayzer_App {
                     String fileEncryptPath = scanner.nextLine();
                     System.out.print("Ключ:");
                     int keyEncrypt = Integer.parseInt(scanner.nextLine());
-                    //if (validator.isKeyValid(keyEncrypt) && validator.isFileExist(fileEncryptPath)) {
+                    if (validator.isKeyValid(keyEncrypt) && validator.isFileExist(fileEncryptPath)) {
                         caesarCipher.encrypt(fileEncryptPath, keyEncrypt);
-                  //  }
+                    }
                     break;
                 case 2:
                     System.out.print("Введите путь к файлу: ");

@@ -13,6 +13,6 @@ public class InputValidator {
     }
 
     public boolean isKeyValid(int key) {
-        return true;
+              return true;
     }
 }
