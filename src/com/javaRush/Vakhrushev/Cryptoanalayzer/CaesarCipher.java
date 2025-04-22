@@ -1,91 +1,109 @@
 
 package com.javaRush.Vakhrushev.Cryptoanalayzer;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.*;
+import java.nio.file.*;
 import java.util.*;
-
 
 public class CaesarCipher {
 
-    static final List ALPHABET = Arrays.asList('а', 'б',
-            'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у',
-            'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'я', '.', ',', '«', '»',
+    // Алфавит
+    public static final List<Character> ALPHABET = Arrays.asList(
+            'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у',
+            'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', '.', ',', '«', '»',
             ':', '!', '?', ' ', 'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У',
-            'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Я', 'й', 'Й', 'ю', 'Ю', 'ё', 'Ё');
+            'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я', 'Й', 'й', 'ё', 'Ё'
+    );
 
-    public static String encrypt(String filePath, int key) throws IllegalArgumentException{
-        Path Path = Paths.get(filePath);
-        Set<String> wordSet = new HashSet<>();
+    public static String encrypt(String filePath, int key) {
+        return processFile(filePath, key, true);
+    }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(Path)))) {
+    public static String decrypt(String filePath, int key) {
+        return processFile(filePath, key, false);
+    }
+
+    private static String processFile(String filePath, int key, boolean isEncrypt) {
+        Path inputPath = Paths.get(filePath);
+        Path outputPath = generateOutputPath(filePath, isEncrypt ? "_encrypted" : "_decrypted");
+
+        try (BufferedReader reader = Files.newBufferedReader(inputPath);
+             BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
+
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] words = line.split("[\\s\\p{Punct}]+");
-                for (String word : words) {
-                    if (!word.isEmpty()) {
-                        wordSet.add(word);
+                StringBuilder processedLine = new StringBuilder();
+                for (char ch : line.toCharArray()) {
+                    int index = ALPHABET.indexOf(ch);
+                    if (index != -1) {
+                        int shift = isEncrypt ? key : -key;
+                        int newIndex = (index + shift + ALPHABET.size()) % ALPHABET.size();
+                        processedLine.append(ALPHABET.get(newIndex));
+                    } else {
+                        processedLine.append(ch); // неизвестный символ — оставим как есть
                     }
                 }
+                writer.write(processedLine.toString());
+                writer.newLine();
             }
+
+            System.out.println((isEncrypt ? "Зашифрованный" : "Расшифрованный") + " файл сохранён по пути: " + outputPath);
+
         } catch (IOException e) {
-            System.out.println("Ошибка при чтении файла: " + e.getMessage());
+            System.err.println("Ошибка обработки файла: " + e.getMessage());
         }
-        StringBuilder encryptedText = new StringBuilder();
-        int alphabetLength = ALPHABET.size();
 
-        for (char ch : wordSet.toString().toCharArray()) {
-            int index = ALPHABET.indexOf(ch);
-            if (index == -1) {
-                throw new IllegalArgumentException("Неизвестный символ: " + ch + "! You are under ATTACKED");
-            }
-            int newIndex = (index + key + alphabetLength) % alphabetLength;
-            encryptedText.append(ALPHABET.indexOf(newIndex));
-        }
-        return encryptedText.toString();
+        return outputPath.toString();
     }
 
-
-    public static String decrypt(String filePath, int key, List ALPHABET) throws IllegalArgumentException{
-        StringBuilder decryptedText = new StringBuilder();
-        int alphabetLength = CaesarCipher.ALPHABET.size();
-
-        for (char ch : filePath.toCharArray()) {
-            int index = CaesarCipher.ALPHABET.indexOf(ch);
-            if (index == -1) {
-                throw new IllegalArgumentException("Неизвестный символ: " + ch + "! You are under ATTACKED!");
-            }
-            int newIndex = (index - key + alphabetLength) % alphabetLength;
-            decryptedText.append(CaesarCipher.ALPHABET.indexOf(newIndex));
-        }
-        return decryptedText.toString();
-
-    }
-
-    public static String decryptBruteForce(String filePath, List  ALPHABET, Set <String> dictionary) {
+    public static String decryptBruteForce(String filePath, Set<String> dictionary) {
+        String bestResult = "";
         int bestScore = 0;
-        String bestDecryption = "";
 
-        for (int shift = 1; shift < ALPHABET.size(); shift++) {
-            String decryptedText = decrypt(filePath, shift, ALPHABET);
-            int score = evaluateText(decryptedText, dictionary);
+        for (int key = 1; key < ALPHABET.size(); key++) {
+            StringBuilder result = new StringBuilder();
 
+            try (BufferedReader reader = Files.newBufferedReader(Paths.get(filePath))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    StringBuilder lineDecrypted = new StringBuilder();
+                    for (char ch : line.toCharArray()) {
+                        int index = ALPHABET.indexOf(ch);
+                        if (index != -1) {
+                            int newIndex = (index - key + ALPHABET.size()) % ALPHABET.size();
+                            lineDecrypted.append(ALPHABET.get(newIndex));
+                        } else {
+                            lineDecrypted.append(ch);
+                        }
+                    }
+                    result.append(lineDecrypted).append("\n");
+                }
+            } catch (IOException e) {
+                System.err.println("Ошибка при brute force расшифровке: " + e.getMessage());
+            }
+
+            int score = evaluateText(result.toString(), dictionary);
             if (score > bestScore) {
                 bestScore = score;
-                bestDecryption = decryptedText;
+                bestResult = result.toString();
             }
         }
-        return bestDecryption;
+
+        // сохраняем результат в файл
+        Path outputPath = generateOutputPath(filePath, "_brute_decrypted");
+        try {
+            Files.write(outputPath, bestResult.getBytes());
+            System.out.println("Результат brute force сохранён по пути: " + outputPath);
+        } catch (IOException e) {
+            System.err.println("Ошибка записи файла после brute force: " + e.getMessage());
+        }
+
+        return outputPath.toString();
     }
 
-    private static int evaluateText(String decryptedText, Set<String> dictionary) {
+    private static int evaluateText(String text, Set<String> dictionary) {
         int score = 0;
-        String[] words = decryptedText.split("\\s+ ");
-
+        String[] words = text.split("\\s+");
         for (String word : words) {
             if (dictionary.contains(word)) {
                 score += word.length();
@@ -94,8 +112,12 @@ public class CaesarCipher {
         return score;
     }
 
-
-
-
+    private static Path generateOutputPath(String originalPath, String suffix) {
+        Path input = Paths.get(originalPath);
+        String fileName = input.getFileName().toString();
+        String newFileName = fileName.contains(".")
+                ? fileName.substring(0, fileName.lastIndexOf('.')) + suffix + fileName.substring(fileName.lastIndexOf('.'))
+                : fileName + suffix;
+        return input.resolveSibling(newFileName);
+    }
 }
-
